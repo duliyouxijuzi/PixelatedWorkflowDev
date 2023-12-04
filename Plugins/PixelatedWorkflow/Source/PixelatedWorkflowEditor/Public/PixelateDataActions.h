@@ -18,20 +18,15 @@ public:
 	virtual uint32 GetCategories() override;
 	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const override;
-
 	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor) override;
 
-	void SavePixelatedFile(UPixelateData* PixelateData);
 	void ExecuteAutoSetPixelateData(TArray<TWeakObjectPtr<UPixelateData>> Objects);
-
 	bool CheckNewPixelateDataFileExist(UPixelateData* PixelateData);
+	void SavePixelatedFile(UPixelateData* PixelateData);
+	FAssetData GetPixelateDataAsset(UPixelateData* PixelateData, FString NewFile = TEXT(""), FString NewPath = TEXT(""));
 
-	FAssetData GetPixelateDataAsset(UPixelateData* PixelateData, FString NewFile = TEXT(""));
-
-	void SetPixelateData(UPixelateData* PixelateData);
-
-	void RenamePixelateData(UPixelateData* PixelateData);
-	void AutoMovePixelateData(UPixelateData* PixelateData);
+	bool RenamePixelateData(UPixelateData* PixelateData);
+	bool CheckMovePixelateData(UPixelateData* PixelateData);
 
 private:
 

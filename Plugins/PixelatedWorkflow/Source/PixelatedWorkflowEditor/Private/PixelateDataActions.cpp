@@ -9,6 +9,7 @@
 #include "FileHelpers.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "ObjectTools.h"
 
 
 FPixelateDataActions::FPixelateDataActions(EAssetTypeCategories::Type InAssetCategory)
@@ -46,7 +47,7 @@ void FPixelateDataActions::GetActions(const TArray<UObject*>& InObjects, FMenuBu
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FPixelateDataActions::ExecuteAutoSetPixelateData, PixelateDatas)
 		)
-		);
+	);
 }
 
 // HasActions() 必须返回 true 以使 GetActions() 有效
@@ -61,69 +62,86 @@ void FPixelateDataActions::OpenAssetEditor(const TArray<UObject*>& InObjects,
 	MakeShared<FPixelateDataEditorToolkit>()->InitEditor(InObjects);
 }
 
+
+void FPixelateDataActions::ExecuteAutoSetPixelateData(TArray<TWeakObjectPtr<UPixelateData>> Objects)
+{
+	const FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	TArray<FAssetRenameData> AssetRenameData;
+	TArray<UPixelateData*> MoveUPixelateDatas;
+	for (auto ObjIt = Objects.CreateConstIterator(); ObjIt; ++ObjIt)
+	{
+		UPixelateData* PixelateData = (*ObjIt).Get();
+		if (PixelateData)
+		{
+			if (RenamePixelateData(PixelateData))
+			{
+				const FString PackagePath = FPackageName::GetLongPackagePath(PixelateData->GetOutermost()->GetName());
+				AssetRenameData.Add(FAssetRenameData(PixelateData, PackagePath, PixelateData->GetPixelateDataFileName()));
+			}
+			if (CheckMovePixelateData(PixelateData))
+			{
+				MoveUPixelateDatas.Add(PixelateData);
+			}
+		}
+	}
+	
+	if (AssetToolsModule.Get().RenameAssets(AssetRenameData))
+	{
+		UE_LOG(LogTemp, Log, TEXT("Finish Rename num: %d."), AssetRenameData.Num());
+		if (MoveUPixelateDatas.Num()>0)
+		{
+			const UPixelatedWorkflowSettings* Settings = GetDefault<UPixelatedWorkflowSettings>();
+			const FString DataPath = Settings->PixelatedPathSettings.PixelatedDataPath.Path;
+			for (UPixelateData* PixelateData : MoveUPixelateDatas)
+			{
+				if (PixelateData)
+				{
+					UObject* NewObject = AssetToolsModule.Get().DuplicateAsset(PixelateData->GetPixelateDataFileName(), DataPath, PixelateData);
+					UPixelateData* NewPixelateData = Cast<UPixelateData>(NewObject);
+					if (NewPixelateData)
+					{
+						SavePixelatedFile(NewPixelateData);
+					}
+					FAssetData CurAssetData = GetPixelateDataAsset(PixelateData);
+					ObjectTools::DeleteAssets({ CurAssetData }, false);
+				}
+			}
+		}
+	}
+}
+
 void FPixelateDataActions::SavePixelatedFile(UPixelateData* PixelateData)
 {
 	FString Name = PixelateData->GetName();
 	if (PixelateData->GetOutermost()->IsDirty())
 	{
 		FEditorFileUtils::PromptForCheckoutAndSave({ PixelateData->GetOutermost() }, false, false);
-		UE_LOG(LogTemp, Log, TEXT("File with name %s has saved in the folder: %s."), *Name, *FPaths::GetPath(Name));
+		UE_LOG(LogTemp, Log, TEXT("File with name %s has saved in the folder: %s."), *Name, *FPaths::GetPath(PixelateData->GetOutermost()->GetName()));
 	}
 	else {
 		UE_LOG(LogTemp, Warning, TEXT("File with name %s dose not need to save."), *Name);
 	}
 }
 
-void FPixelateDataActions::ExecuteAutoSetPixelateData(TArray<TWeakObjectPtr<UPixelateData>> Objects)
-{
-	for (auto ObjIt = Objects.CreateConstIterator(); ObjIt; ++ObjIt)
-	{
-		UPixelateData* PixelateData = (*ObjIt).Get();
-		if (PixelateData)
-		{
-			SetPixelateData(PixelateData);
-		}
-	}
-}
-
 bool  FPixelateDataActions::CheckNewPixelateDataFileExist(UPixelateData* PixelateData)
 {
-	const FString OutName = PixelateData->GetOutermost()->GetName();
 	FString Name = PixelateData->GetName();
 	FString NewName = PixelateData->GetPixelateDataFileName();
 	// 使用文件管理器检查文件是否存在
-	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-	//首先检查当前文件所在的文件下是否有重名的文件
-
-	// 构建新文件的相对路径
-	FString CurNewFilePath = FPaths::Combine(FPaths::GetPath(OutName), NewName);
-	//转换成绝对路径
-	FString CurNewFileAbsolutePath = FPaths::ConvertRelativePathToFull(CurNewFilePath);
-	FString CurNewFileAbsolutePath1 = FPaths::ConvertRelativePathToFull(OutName);
-	/*UE_LOG(LogTemp, Log, TEXT("File Path %s File name %s ..  %s .. %s"), *CurNewFilePath,
-		*FPaths::GetPath(OutName), *FPaths::GetCleanFilename(OutName), *OutName);*/
-	UE_LOG(LogTemp, Log, TEXT("RPath %s Path: %s --- %s"), *CurNewFilePath, 
-		*CurNewFileAbsolutePath, *CurNewFileAbsolutePath1);
-
-	const FString AssetPath = UKismetSystemLibrary::GetPathName(PixelateData);
-	const FString LongPackagePath = FPackageName::GetLongPackagePath(AssetPath);
-
-	UE_LOG(LogTemp, Log, TEXT("RPath %s Path: %s"), *AssetPath,
-		*LongPackagePath);
-
-	FAssetData AssetData = GetPixelateDataAsset(PixelateData, NewName);
-	if (AssetData.IsValid())
+	FAssetData CurAssetData = GetPixelateDataAsset(PixelateData, NewName);
+	if (CurAssetData.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("File : %s already exists in the folder: %s."), *NewName);
+		UE_LOG(LogTemp, Warning, TEXT("File : %s already exists in the folder: %s."), *NewName, *FPaths::GetPath(PixelateData->GetOutermost()->GetName()));
 		return true;
 	}
 	else
 	{
+		const FString OutName = PixelateData->GetOutermost()->GetName();
 		const UPixelatedWorkflowSettings* Settings = GetDefault<UPixelatedWorkflowSettings>();
 		//检查指定的文件夹下是否存在同名文件
 		const FString DataPath = Settings->PixelatedPathSettings.PixelatedDataPath.Path;
-		FString TargetNewFilePath = FPaths::Combine(DataPath, NewName);
-		if (PlatformFile.FileExists(*TargetNewFilePath))
+		FAssetData DatatAssetData = GetPixelateDataAsset(PixelateData, NewName, DataPath);
+		if (DatatAssetData.IsValid())
 		{
 			UE_LOG(LogTemp, Warning, TEXT("File with name %s already exists in the folder: %s."), *NewName, *DataPath);
 			return true;
@@ -134,35 +152,29 @@ bool  FPixelateDataActions::CheckNewPixelateDataFileExist(UPixelateData* Pixelat
 	}
 }
 
-FAssetData FPixelateDataActions::GetPixelateDataAsset(UPixelateData* PixelateData, FString NewFile)
+FAssetData FPixelateDataActions::GetPixelateDataAsset(UPixelateData* PixelateData, FString NewFile, FString NewPath)
 {
 	FString AssetPath = UKismetSystemLibrary::GetPathName(PixelateData);
-	const FString LongPackagePath = FPackageName::GetLongPackagePath(AssetPath);
+	FString LongPackagePath = FPackageName::GetLongPackagePath(AssetPath);
+	if (NewPath != TEXT(""))
+	{
+		LongPackagePath = NewPath;
+	}
 	if (NewFile != TEXT(""))
 	{
-		AssetPath = FPaths::Combine(LongPackagePath, FString::Printf(TEXT("%s%s"),*NewFile, *FPackageName::GetAssetPackageExtension()));
+		AssetPath = FPaths::Combine(LongPackagePath, FString::Printf(TEXT("%s.%s"),*NewFile, *NewFile));
 	}
-	FString CurNewFileAbsolutePath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir(), AssetPath);
-	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
-	// 检查源文件是否存在
-	if (PlatformFile.FileExists(*CurNewFileAbsolutePath))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("%s Rename Fail !!!"), *CurNewFileAbsolutePath);
-	}
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+#if ENGINE_MINOR_VERSION >= 1
+	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(AssetPath));
+#else
 	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*AssetPath);
+#endif
 	return AssetData;
 }
 
-void FPixelateDataActions::SetPixelateData(UPixelateData* PixelateData)
-{
-	CheckNewPixelateDataFileExist(PixelateData);
-	/*RenamePixelateData(PixelateData);
-	AutoMovePixelateData(PixelateData);*/
-}
-
-void FPixelateDataActions::RenamePixelateData(UPixelateData* PixelateData)
+bool FPixelateDataActions::RenamePixelateData(UPixelateData* PixelateData)
 {
 	// 自动命名
 	FString Name = PixelateData->GetName();
@@ -176,60 +188,34 @@ void FPixelateDataActions::RenamePixelateData(UPixelateData* PixelateData)
 			UObject* NewOuter = PixelateData->GetOuter();
 			UClass* NewClass = PixelateData->GetClass();
 			// 不存在同名对象，可以进行重命名操作
-			if (PixelateData->Rename(*NewName, PixelateData->GetOuter(), RF_NoFlags))
-			{
-				UE_LOG(LogTemp, Log, TEXT("%s Rename Success !!!"), *Name);
-				// 重命名成功
-				SavePixelatedFile(PixelateData);
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("%s Rename Fail !!!"), *Name);
-			}
+			return true;
 		}
 	}
 	else {
 		UE_LOG(LogTemp, Warning, TEXT("%s do not need Rename !!!"), *Name);
 	}
+	return false;
 }
 
-void FPixelateDataActions::AutoMovePixelateData(UPixelateData* PixelateData)
+bool FPixelateDataActions::CheckMovePixelateData(UPixelateData* PixelateData)
 {
 	FString Name = PixelateData->GetName();
-	FString SourceFilePath = FPaths::Combine(FPaths::GetPath(Name), Name);
-	// 使用文件管理类 FPlatformFileManager 进行文件移动操作
-	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-
-	// 检查源文件是否存在
-	if (PlatformFile.FileExists(*SourceFilePath))
+	
+	// 使用文件管理器检查文件是否存在
+	FAssetData CurAssetData = GetPixelateDataAsset(PixelateData);
+	if (CurAssetData.IsValid())
 	{
+		const FString OutName = PixelateData->GetOutermost()->GetName();
 		const UPixelatedWorkflowSettings* Settings = GetDefault<UPixelatedWorkflowSettings>();
 		//检查指定的文件夹下是否存在同名文件
+		FString NewName = PixelateData->GetPixelateDataFileName();
 		const FString DataPath = Settings->PixelatedPathSettings.PixelatedDataPath.Path;
-		FString TargetFilePath = FPaths::Combine(DataPath, Name);
-		// 如果目标文件夹不存在，则创建目标文件夹
-		if (!PlatformFile.DirectoryExists(*DataPath))
+		FAssetData DatatAssetData = GetPixelateDataAsset(PixelateData, NewName, DataPath);
+		if (!DatatAssetData.IsValid())
 		{
-			PlatformFile.CreateDirectory(*DataPath);
+			return true;
 		}
-		// 构建目标文件的完整路径
-		FString DestinationFile = FPaths::Combine(DataPath, FPaths::GetCleanFilename(SourceFilePath));
+	}
+	return false;
 
-		// 尝试移动文件
-		if (PlatformFile.MoveFile(*DestinationFile, *SourceFilePath))
-		{
-			// 移动成功
-			UE_LOG(LogTemp, Log, TEXT("%s move to success !!!"), *Name);
-		}
-		else
-		{
-			// 移动失败
-			UE_LOG(LogTemp, Warning, TEXT("%s move to success !!!"), *Name);
-		}
-	}
-	else
-	{
-		// 源文件不存在
-		UE_LOG(LogTemp, Warning, TEXT("%s dose not exit！"), *SourceFilePath);
-	}
 }
