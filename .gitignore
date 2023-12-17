@@ -6,8 +6,7 @@
 Binaries
 **/Binaries
 Config
-Content
-**/Content
+/Content/
 DerivedDataCache
 Intermediate
 **/Intermediate
