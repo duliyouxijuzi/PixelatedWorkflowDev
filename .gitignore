@@ -12,7 +12,7 @@ DerivedDataCache
 Intermediate
 **/Intermediate
 PixelatedOutputPng
-**/Resources
+/Resources/
 Platforms
 Saved
 /Source/

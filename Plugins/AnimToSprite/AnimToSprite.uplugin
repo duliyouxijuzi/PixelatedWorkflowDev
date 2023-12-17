@@ -1,0 +1,43 @@
+{
+	"FileVersion": 3,
+	"Version": 14,
+	"VersionName": "1.8.1",
+	"FriendlyName": "AnimToSprite",
+	"Description": "AnimToSprite generates a sprite with a NormalMap from a 3D character.",
+	"Category": "Rendering",
+	"CreatedBy": "JunkGames",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "AnimToSprite",
+			"Type": "Runtime",
+			"LoadingPhase": "PreLoadingScreen",
+			"PlatformAllowList": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "AnimToSpriteEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "Paper2D",
+			"Enabled": true
+		},
+		{
+			"Name": "Niagara",
+			"Enabled": true
+		}
+	]
+}
