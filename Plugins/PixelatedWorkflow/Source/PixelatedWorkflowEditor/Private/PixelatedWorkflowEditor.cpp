@@ -27,15 +27,15 @@ void FPixelatedWorkflowEditorModule::RegisterAssetActions()
 	EAssetTypeCategories::Type Category = FAssetToolsModule::GetModule().Get().RegisterAdvancedAssetCategory(
 		FName(TEXT("PixelatedWorkflow")), FText::FromString("PixelatedWorkflow"));
 	// 注册 AssetTypeActions
-	PixelateDataActions = MakeShared<FPixelateDataActions>(Category);
-	FAssetToolsModule::GetModule().Get().RegisterAssetTypeActions(PixelateDataActions.ToSharedRef());
+	PixelatedAssetActions = MakeShared<FPixelatedAssetActions>(Category);
+	FAssetToolsModule::GetModule().Get().RegisterAssetTypeActions(PixelatedAssetActions.ToSharedRef());
 }
 
 void FPixelatedWorkflowEditorModule::UnregisterAssetActions()
 {
 	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
 	{
-		FAssetToolsModule::GetModule().Get().UnregisterAssetTypeActions(PixelateDataActions.ToSharedRef());
+		FAssetToolsModule::GetModule().Get().UnregisterAssetTypeActions(PixelatedAssetActions.ToSharedRef());
 	}
 }
 

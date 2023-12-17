@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
-#include "PixelateDataActions.h"
+#include "PixelatedAssetActions.h"
 
 class FPixelatedWorkflowEditorModule : public IModuleInterface
 {
@@ -21,5 +21,5 @@ public:
 	void UnregisterSettings();
 private:
 
-	TSharedPtr<FPixelateDataActions> PixelateDataActions;
+	TSharedPtr<FPixelatedAssetActions> PixelatedAssetActions;
 };

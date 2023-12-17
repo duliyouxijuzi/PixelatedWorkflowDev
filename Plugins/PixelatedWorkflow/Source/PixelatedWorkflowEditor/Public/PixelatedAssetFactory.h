@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Factories/Factory.h"
-#include "PixelateDataFactory.generated.h"
+#include "PixelatedAssetFactory.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class PIXELATEDWORKFLOWEDITOR_API UPixelateDataFactory : public UFactory
+class PIXELATEDWORKFLOWEDITOR_API UPixelatedAssetFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 public:

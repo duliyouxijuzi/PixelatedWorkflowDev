@@ -1,40 +1,42 @@
 #include "PixelatedWorkflowStruct.h"
-#include "Interfaces/IPluginManager.h"
-#include "HAL/PlatformFilemanager.h"
-#include "GenericPlatform/GenericPlatformFile.h"
 
-FPixelatedPathSettings::FPixelatedPathSettings(){
-	PixelatedDataPath.Path = FPaths::Combine(IPluginManager::Get().FindPlugin("PixelatedWorkflow")->GetContentDir(), TEXT("PixelatedData"));
-    PixelatedGenerateTexturePath.Path = FPaths::Combine(IPluginManager::Get().FindPlugin("PixelatedWorkflow")->GetContentDir(), TEXT("PixelatedGenerateTexture"));
-	PixelatedOutputPngPath.Path = FPaths::Combine(FPaths::ProjectDir(), TEXT("PixelatedOutputPng"));
-
-	if (isGenerateDirectory)
+bool FPixelatedModelSetting::IsValid() const
+{
+	switch (ModelType)
 	{
-		GenerateDirectory(PixelatedDataPath.Path);
-		GenerateDirectory(PixelatedGenerateTexturePath.Path);
-		GenerateDirectory(PixelatedOutputPngPath.Path);
+	case EPixelatedModelType::ActorClass:
+		return ActorClass != nullptr;
+	case EPixelatedModelType::SkeletalMesh:
+		return SkeletalMesh != nullptr;
+	case EPixelatedModelType::StaticMesh:
+		return StaticMesh != nullptr;
+	default:
+		return false;
 	}
 }
 
-void FPixelatedPathSettings::GenerateDirectory(FString DirPath){
-	// 获取文件系统管理器
-    IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+void FPixelatedModelSetting::Clear()
+{
+	ActorClass = nullptr;
+	SkeletalMesh = nullptr;
+}
 
-    // 判断路径是否存在
-    if (!PlatformFile.DirectoryExists(*DirPath))
-    {
-        // 生成文件夹
-        if (PlatformFile.CreateDirectoryTree(*DirPath))
-        {
-            UE_LOG(LogTemp, Warning, TEXT("Folder created: %s"), *DirPath);
-        }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("Failed to create folder: %s"), *DirPath);
-        }
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Folder already exists: %s"), *DirPath);
-    }
+bool FPixelatedModelSetting::operator==(const FPixelatedModelSetting& Other) const
+{
+	if (ModelType != Other.ModelType)
+	{
+		return false;
+	}
+
+	switch (ModelType)
+	{
+	case EPixelatedModelType::ActorClass:
+		return ActorClass == Other.ActorClass;
+	case EPixelatedModelType::SkeletalMesh:
+		return SkeletalMesh == Other.SkeletalMesh;
+	case EPixelatedModelType::StaticMesh:
+		return StaticMesh == Other.StaticMesh;
+	default:
+		return false;
+	}
 }
